@@ -1,0 +1,630 @@
+<script
+  async
+  src="//ajax.googleapis.com/ajax/libs/jquery/2.1.0/jquery.min.js"
+></script>
+
+<div
+  id="collection"
+  class="rte wrapper main content main-wrapper"
+  style="text-align: center;"
+>
+  <div style="max-width: 1100px; margin: auto;">
+    {% paginate collections.all.products by 50 %}
+      <div class="action-bar top clearfix">
+        <h1 class="left">
+          {% if template contains 'page' -%}
+            {{- page.title -}}
+          {%- else -%}
+            {{- collection.title -}}
+          {%- endif %}
+        </h1>
+        <input
+          class=" add-to-cart-order-form button button--primary btn btn-primary btn-lg  btn_c right action-button action_button submit solid cart-checkout-button "
+          type="submit"
+          value="Add to cart"
+        >
+      </div>
+
+      {% if collections.all.products_count > 0 %}
+        <table class="pure-table pure-table-bordered">
+          <thead>
+            <tr>
+              <th class="qo-hide-mobile"></th>
+              <th>Item</th>
+              <th>SKU</th>
+              <th style="width: 9em;">Price</th>
+              <th>Qty</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {% for product in collections.all.products %}
+              {% unless product.type == 'Gift Card' %}
+                {% assign base_variant = product.selected_or_first_available_variant %}
+                {% if shop.metafields.sawholesale.base_price == blank %}
+                  {% assign base_price = 'compare_at_price' %}
+                {% else %}
+                  {% assign base_price = shop.metafields.sawholesale.base_price %}
+                {% endif %}
+
+                {% assign saw_discount = 0 -%}
+                {%- assign saw_has_discount = false %}
+
+                {% if customer.tags != blank %}
+                  {% for mf in product.metafields.sawholesale %}
+                    {% capture product_customer_tag %}{{ mf | first | replace: 'discount_', '' }}{% endcapture %}
+                    {% if customer.tags contains product_customer_tag %}
+                      {% assign saw_has_discount = true %}
+                      {% assign discount_key = product_customer_tag
+                        | prepend: 'discount_'
+                      %}
+                      {% assign price_key = product_customer_tag
+                        | prepend: 'price_'
+                      %}
+                      {% assign saw_discount = product.metafields.sawholesale[discount_key]
+                        | divided_by: 100.0
+                      %}
+                    {% endif %}
+                  {% endfor %}
+                {% endif %}
+
+                {% assign saw_discount = 1 | minus: saw_discount %}
+
+                {% if base_price == 'price'
+                  or base_variant.compare_at_price == blank
+                  or base_variant.compare_at_price == 0
+                  or base_variant.compare_at_price < base_variant.price
+                %}
+                  {% assign saw_product_compare_at_price = base_variant.price %}
+                {% else %}
+                  {% assign saw_product_compare_at_price = base_variant.compare_at_price %}
+                {% endif %}
+
+                {% assign cpe = shop.metafields.sawholesale.cpe
+                  | default: 'true'
+                %}
+                {% if base_variant.metafields.sawholesale[price_key] != blank
+                  and cpe == 'true'
+                %}
+                  {% assign saw_product_price = base_variant.metafields.sawholesale[price_key] %}
+                {% else %}
+                  {% assign saw_product_price = saw_product_compare_at_price
+                    | times: saw_discount
+                  %}
+                {% endif %}
+
+                {% if saw_discount < 1 %}
+                  <!-- only discounted -->
+                {% endif %}
+
+                {% if product.available %}
+                  {% if product.variants.size > 1 %}
+                    {% assign product_featured_image = product.featured_image %}
+
+                    <tr class="{% cycle 'pure-table-odd', '' %}">
+                      <td class="img qo-hide-mobile">
+                        <a href="{{ product.url }}">
+                          <img
+                            src="{{ product_featured_image | image_url: width: 100, height: 100 }}"
+                            loading="lazy"
+                          >
+                        </a>
+                      </td>
+
+                      <td>
+                        <a href="{{ product.url }}">
+                          {{ product.title }}
+                        </a>
+                        <br>
+                        {% for tag in product.tags %}
+                          {% if tag contains 'Minimum'
+                            or tag contains 'units'
+                          %}
+                            <b>{{ tag }}</b>
+                          {% endif %}
+                        {% endfor %}
+                      </td>
+
+                      <td class="qo-sku">
+                        <button
+                          class="show-variants  right action-button submit solid button button--primary right btn btn_c action-button action_button  "
+                          data-product-id="{{ product.id }}"
+                        >
+                          Show variants
+                        </button>
+                      </td>
+
+                      <td>
+                        {% if product.price_varies %}from {% endif %}
+                        {% if saw_has_discount == false
+                          or saw_product_price >= saw_product_compare_at_price
+                        %}
+                          <!-- original prices here -->
+                          {{ product.price | money }}
+                        {% else %}
+                          {{ saw_product_price | money }}
+                          <del>
+                            {{- saw_product_compare_at_price | money -}}
+                          </del>
+                        {% endif %}
+                      </td>
+
+                      <td style="text-align:right;"></td>
+                    </tr>
+
+                  {% else %}
+
+                  {% endif %}
+
+                  {% for variant in product.variants %}
+                    {% unless variant.title contains '% Off' %}
+                      {% assign vtitle = variant.title
+                        | append: product.title
+                        | downcase
+                      %}
+                      {% unless vtitle contains 'luer slip syringe'
+                        or vtitle contains 'luer lock syringe'
+                      %}
+                        {% if variant.available %}
+                          {% assign featured_image = variant.featured_image
+                            | default: product.featured_image
+                          %}
+
+                          <tr class="{% cycle 'pure-table-odd', '' %} variants-product-id{{ product.id }} {% if product.variants.size > 1 %}p-hidden{% endif %} row-variant-id{{ variant.id }} v-hidden">
+                            <td class="img qo-hide-mobile">
+                              <a href="{{ variant.url }}">
+                                <img
+                                  src="{{ featured_image | image_url: width: 100, height: 100 }}"
+                                  loading="lazy"
+                                >
+                              </a>
+                              {% if product_featured_image != featured_image %}
+                              {% endif %}
+                            </td>
+
+                            <td>
+                              <a href="{{ product.url }}">
+                                {% if product.variants.size == 1 %}
+                                  {{ product.title -}}
+                                  <br>
+                                {% endif %}
+                                {% unless variant.title contains 'Default' -%}
+                                  {{- variant.title -}}
+                                {%- endunless %}
+                              </a>
+                              <br>
+                              {% for tag in product.tags %}
+                                {% if tag contains 'Minimum'
+                                  or tag contains 'units'
+                                %}
+                                  <b>{{ tag }}</b>
+                                {% endif %}
+                              {% endfor %}
+                            </td>
+
+                            <td class="qo-sku">
+                              {{ variant.sku }}
+                            </td>
+
+                            <td>
+                              {% if shop.metafields.sawholesale.base_price
+                                  == blank
+                              %}
+                                {% assign base_price = 'compare_at_price' %}
+                              {% else %}
+                                {% assign base_price = shop.metafields.sawholesale.base_price %}
+                              {% endif %}
+
+                              {% assign saw_discount = 0 -%}
+                              {%- assign saw_has_discount = false %}
+
+                              {% if customer.tags != blank %}
+                                {% for mf in product.metafields.sawholesale %}
+                                  {% capture product_customer_tag %}{{ mf | first | replace: 'discount_', '' }}{% endcapture %}
+                                  {% if customer.tags
+                                      contains product_customer_tag
+                                  %}
+                                    {% assign saw_has_discount = true %}
+                                    {% assign discount_key = product_customer_tag
+                                      | prepend: 'discount_'
+                                    %}
+                                    {% assign price_key = product_customer_tag
+                                      | prepend: 'price_'
+                                    %}
+                                    {% assign saw_discount = product.metafields.sawholesale[discount_key]
+                                      | divided_by: 100.0
+                                    %}
+                                  {% endif %}
+                                {% endfor %}
+                              {% endif %}
+
+                              {% assign saw_discount = 1
+                                | minus: saw_discount
+                              %}
+
+                              {% if base_price == 'price'
+                                or variant.compare_at_price == blank
+                                or variant.compare_at_price == 0
+                                or variant.compare_at_price < variant.price
+                              %}
+                                {% assign saw_variant_compare_at_price = variant.price %}
+                              {% else %}
+                                {% assign saw_variant_compare_at_price = variant.compare_at_price %}
+                              {% endif %}
+
+                              {% assign cpe = shop.metafields.sawholesale.cpe
+                                | default: 'true'
+                              %}
+                              {% if variant.metafields.sawholesale[price_key]
+                                  != blank
+                                and cpe == 'true'
+                              %}
+                                {% assign saw_variant_price = variant.metafields.sawholesale[price_key] %}
+                              {% else %}
+                                {% assign saw_variant_price = saw_variant_compare_at_price
+                                  | times: saw_discount
+                                %}
+                              {% endif %}
+
+                              {% if saw_discount == 1 %}
+                                <!-- original prices here -->
+                                {{ variant.price | money }}
+                              {% else %}
+                                {{ saw_variant_price | money }}
+                                {% comment %}
+                                  <del>{{ saw_variant_compare_at_price | money }}</del>
+                                {% endcomment %}
+                              {% endif %}
+                            </td>
+
+                            {% comment %}
+                              <td style="text-align:right;">
+                                      {{ variant.inventory_quantity }}
+                              </td>
+                            {% endcomment %}
+
+                            <td style="text-align:right;">
+                              <input
+                                onfocus="this.select()"
+                                class="quantity field"
+                                data-id="{{ variant.id }}"
+                                min="0"
+                                {% unless variant.inventory_management == blank
+                                  or variant.inventory_policy == 'continue'
+                                %}
+                                  {%- assign max = variant.inventory_quantity -%}
+                                  {%- for item in cart.items -%}
+                                    {%- if item.id == variant.id -%}
+                                      {%- assign max = max
+                                        | minus: item.quantity
+                                      -%}
+                                    {%- endif -%}
+                                  {%- endfor %}
+                                  max="{{ max }}"
+                                {% endunless %}
+                                type="number"
+                                value="0"
+                                tabindex="1"
+                              >
+                            </td>
+                          </tr>
+                        {% endif %}
+                      {% endunless %}
+                    {% endunless %}
+                  {% endfor %}
+                  <script>
+                    if (typeof sawholesale_product_variants_json == "function") {
+                      var p = sawholesale_product_variants_json({{ product | json }})
+                      p.variants.map(function(v) {
+                      jQuery(".row-variant-id" + v.id).removeClass("v-hidden")
+                      })
+                    } else {
+                      jQuery("tr").removeClass("v-hidden")
+                    }
+                  </script>
+                {% endif %}
+              {% endunless %}
+            {% endfor %}
+          </tbody>
+        </table>
+        <div class="action-bar clearfix">
+          <input
+            class=" add-to-cart-order-form button button--primary btn btn-primary btn-lg btn_c right action-button action_button submit solid cart-checkout-button cart__checkout"
+            type="submit"
+            value="Add to cart"
+          >
+        </div>
+      {% else %}
+        <p>There are no products in this view.</p>
+      {% endif %}
+
+      <div id="pagination" class="desktop-12 tablet-6 mobile-3">
+        {% comment %}
+          <span class="count">Showing products {{ paginate.current_offset | plus: 1 }}-{% if paginate.next %}{{ paginate.current_offset | plus: paginate.page_size }}{% else %}{{ paginate.items }}{% endif %} of {{ paginate.items }}.</span>
+        {% endcomment %}
+
+        <div class="clear"></div>
+
+        {% if paginate.previous %}
+          {{ 'Previous page' | link_to: paginate.previous.url }}
+        {% endif %}
+
+        {% comment %}
+          {% for part in paginate.parts %}
+          {% if part.is_link %}
+          {{ part.title | link_to: part.url }}
+          {% else %}
+          {% if part.title == '&hellip;' %}
+          {{ part.title }}
+          {% else %}
+          <span class="current">{{ part.title }}</span>
+          {% endif %}
+          {% endif %}
+          {% endfor %}
+        {% endcomment %}
+
+        {% if paginate.next %}
+          {{ 'Next page' | link_to: paginate.next.url }}
+        {% endif %}
+      </div>
+    {% endpaginate %}
+
+    {% if collections.all.products_count > 0 %}
+      <script>
+        ShopifyQO = {};
+        ShopifyQO.itemsToAdd = [];
+        ShopifyQO.addItemstoTheCart = function () {
+          console.log(ShopifyQO.itemsToAdd);
+          if (ShopifyQO.itemsToAdd.length) {
+            var item = ShopifyQO.itemsToAdd.pop();
+            $.ajax({
+              url: '/cart/add',
+              dataType: 'json',
+              type: 'post',
+              data: item,
+              success: ShopifyQO.addItemstoTheCart,
+              error: ShopifyQO.addItemstoTheCart,
+            });
+          } else {
+            $('.quantity').val('0');
+            //alert("Added to cart")
+            window.location.href = '/cart';
+          }
+        };
+        jQuery(function ($) {
+          $('table .quantity:first').focus();
+          $('[max]').change(function () {
+            var max = parseInt($(this).attr('max'), 10);
+            var value = parseInt($(this).val(), 10) || 0;
+            if (value > max) {
+              alert('We only have ' + max + ' of this item in stock');
+              $(this).val(max);
+            }
+          });
+
+          $('.add-variant-to-cart').click(function (ev) {
+            var variant_id = $(this).attr('data-variant-id');
+            //console.log("variant_id", variant_id, ".quantity[data-id='" + variant_id + "']")
+            var quantity = $(".quantity[data-id='" + variant_id + "']").val();
+            //console.log("quantity", quantity)
+
+            $.ajax({
+              url: '/cart/add.js',
+              dataType: 'json',
+              type: 'post',
+              data: {
+                id: variant_id,
+                quantity: quantity,
+              },
+              success: function () {
+                alert(quantity + ' items added to cart');
+              },
+            });
+          });
+
+          $('.add-to-cart-order-form').click(function (ev) {
+            ev.preventDefault();
+            $('.add-to-cart-order-form')
+              .addClass('disabled')
+              .attr('disabled', 'disabled');
+            // Resetting.
+            ShopifyQO.itemsToAdd = [];
+            $('.quantity').each(function () {
+              var quantity = parseInt($(this).val(), 10);
+              if (quantity && $(this).attr('data-id')) {
+                ShopifyQO.itemsToAdd.push({
+                  id: $(this).attr('data-id'),
+                  quantity: quantity,
+                });
+              }
+            });
+            if (ShopifyQO.itemsToAdd.length) {
+              ShopifyQO.addItemstoTheCart();
+            } else {
+              alert('All quantities are set to zero.');
+              $('.add-to-cart-order-form')
+                .removeAttr('disabled')
+                .removeClass('disabled');
+            }
+          });
+
+          jQuery('body').on('click', '.show-variants', function (ev) {
+            ev.preventDefault();
+            var product_id = $(this).data('product-id');
+            $('.variants-product-id' + product_id).removeClass('p-hidden');
+            $(this)
+              .removeClass('show-variants')
+              .addClass('hide-variants')
+              .html('Hide variants');
+          });
+          jQuery('body').on('click', '.hide-variants', function (ev) {
+            ev.preventDefault();
+            var product_id = $(this).data('product-id');
+            $('.variants-product-id' + product_id).addClass('p-hidden');
+            $(this)
+              .removeClass('hide-variants')
+              .addClass('show-variants')
+              .html('Show variants');
+          });
+        });
+      </script>
+    {% endif %}
+
+    <style>
+      .action-bar {
+        margin: 15px 0;
+      }
+      .action-bar.top {
+        margin: 30px 0 0;
+      }
+      .action-bar h1 {
+        margin: 0;
+        padding: 0;
+        line-height: 1;
+      }
+      .left {
+        float: left;
+      }
+      .right {
+        float: right;
+      }
+      .clearfix:before,
+      .clearfix:after {
+        content: '';
+        display: table;
+      }
+      .clearfix:after {
+        clear: both;
+      }
+      .clearfix {
+        zoom: 1;
+      }
+      /* Additional styles for table */
+      table.pure-table {
+        margin: 15px 0;
+        width: 100%;
+      }
+      table.pure-table tr td:first-child,
+      table.pure-table tr th:first-child {
+        padding-left: 12px;
+      }
+      table.pure-table tr td:last-child,
+      table.pure-table tr th:last-child {
+        padding-right: 12px;
+      }
+      table.pure-table img {
+        float: left;
+        padding: 0px 0;
+      }
+      table.pure-table td {
+        vertical-align: middle;
+      }
+      table.pure-table td.img {
+        background-color: #fff !important;
+      }
+      .pure-table {
+        border-collapse: collapse;
+        border-spacing: 0;
+        empty-cells: show;
+        border: 1px solid #cbcbcb;
+      }
+      .pure-table caption {
+        color: #000;
+        font: italic 85%/1 arial, sans-serif;
+        padding: 1em 0;
+        text-align: center;
+      }
+      .pure-table td,
+      .pure-table th {
+        border-left: 1px solid #cbcbcb;
+        border-width: 0 0 0 1px;
+        font-size: inherit;
+        margin: 0;
+        overflow: visible;
+        padding: 2px 12px;
+      }
+      .pure-table td:first-child,
+      .pure-table th:first-child {
+        border-left-width: 0;
+      }
+      .pure-table thead {
+        background: #e0e0e0;
+        color: #000;
+        text-align: left;
+        vertical-align: bottom;
+      }
+      .pure-table td {
+        background-color: #e0e0e0;
+      }
+      .pure-table-odd td {
+        background-color: #f2f2f2;
+      }
+      .pure-table-striped tr:nth-child(2n-1) td {
+        background-color: #f2f2f2;
+      }
+      .pure-table-bordered td {
+        border-bottom: 1px solid #cbcbcb;
+      }
+      .pure-table-bordered tbody > tr:last-child td,
+      .pure-table-horizontal tbody > tr:last-child td {
+        border-bottom-width: 0;
+      }
+      .pure-table-horizontal td,
+      .pure-table-horizontal th {
+        border-width: 0 0 1px;
+        border-bottom: 1px solid #cbcbcb;
+      }
+      .pure-table-horizontal tbody > tr:last-child td {
+        border-bottom-width: 0;
+      }
+
+      .p-hidden,
+      .v-hidden {
+        display: none;
+      }
+      .show-variants,
+      .hide-variants {
+        width: 12em !important;
+      }
+      .add-to-cart-order-form {
+      }
+      .button {
+        width: auto !important;
+      }
+      .quantity {
+        text-align: center;
+        width: 90px !important;
+        margin: 0 !important;
+      }
+
+      @media (max-width: 960px) {
+        .qo-hide-mobile {
+          display: none;
+        }
+        table {
+          font-size: 14px;
+        }
+        .show-variants {
+          font-size: 12px;
+          padding: 0px;
+          width: 6em !important;
+        }
+        .qo-sku {
+          padding: 0px !important;
+        }
+      }
+    </style>
+  </div>
+</div>
+
+{% schema %}
+{
+  "name": "Quick buy",
+  "settings": [],
+  "presets": [
+    {
+      "name": "Quick buy"
+    }
+  ]
+}
+{% endschema %}

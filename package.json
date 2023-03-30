@@ -1,0 +1,19 @@
+{
+  "name": "liquid-templates",
+  "version": "0.0.1",
+  "description": "A repository of some asked for features once you get the ball rolling.",
+  "type": "module",
+  "keywords": [],
+  "author": {
+    "name": "Harshdeep Singh Hura",
+    "url": "https://twitter.com/kinngh"
+  },
+  "license": "MIT",
+  "scripts": {
+    "pretty": "prettier --write ./"
+  },
+  "dependencies": {
+    "@shopify/prettier-plugin-liquid": "^1.0.6",
+    "prettier": "^2.8.7"
+  }
+}
