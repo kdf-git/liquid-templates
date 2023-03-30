@@ -1,0 +1,25 @@
+{% comment %}
+  Don't forget to import `copyUrlCustom.js`.
+{% endcomment %}
+
+{% assign cartString = 'https://websiteurl.com/cart/' %}
+{% for cartItems in cart.items %}
+  {% assign cartString = cartString
+    | append: ','
+    | append: cartItems.variant_id
+    | append: ':'
+    | append: cartItems.quantity
+  %}
+{% endfor %}
+<div class="button-container">
+  <input
+    value="{{ cartString | remove_first: "," | append: "?storefront=true" }}"
+    class="text-area field__input"
+    style="min-height: revert !important;"
+    id="share-cart-link-custom"
+    readonly
+  >
+  <div class="button" onclick="copyURLCustom()" id="share-cart-button-custom">
+    Share Cart
+  </div>
+</div>
